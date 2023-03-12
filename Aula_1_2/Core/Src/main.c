@@ -86,26 +86,49 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_LPUART1_UART_Init();
+
   /* USER CODE BEGIN 2 */
-  char flag = 1;
-  uint32_t t0 = 0;
+
+  int const timeout = 5000;		// Enter button pressed timeout (ms)
+  char blink_led = 0;			// Flag to indicate LED behavior (reset / blink)
+  uint32_t t0 = 0;				// Time when button is pressed
+  uint32_t t1 = 0;				// Time when button is released
+  GPIO_PinState old_button_state = HAL_GPIO_ReadPin(BT_Enter_GPIO_Port, BT_Enter_Pin);
+  GPIO_PinState current_button_state = old_button_state;
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  GPIO_PinState button_value = HAL_GPIO_ReadPin(BT_Enter_GPIO_Port, BT_Enter_Pin);
-	  if((button_value == GPIO_PIN_SET) && (flag)){
+	  current_button_state = HAL_GPIO_ReadPin(BT_Enter_GPIO_Port, BT_Enter_Pin);
+
+	  // Enter button is pressed. Get time
+	  if((current_button_state == GPIO_PIN_SET) && (old_button_state == GPIO_PIN_RESET)){
 		  t0 = HAL_GetTick();
-		  flag = 0;
-	  } else {
-		  flag = 1;
 	  }
-	  uint32_t t1 = HAL_GetTick();
-	  if((button_value != GPIO_PIN_SET) && (t1-t0 >= 500)){
+
+	  // Enter button is released
+	  else if((current_button_state == GPIO_PIN_RESET) && (old_button_state == GPIO_PIN_SET)){
+		  t1 = HAL_GetTick();
+
+		  // If button is released after timeout, change current LED behavior
+		  if (t1 - t0 >= timeout){
+			  blink_led = ~blink_led;
+		  }
+	  }
+
+	  // LED behavior
+	  if (blink_led){
 		  HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+		  HAL_Delay(500);
+	  } else {
+		  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 	  }
+
+	  old_button_state = current_button_state;
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
